@@ -1,11 +1,2 @@
 Deny from all
 
-#RewriteEngine  on
-#RewriteRule ^$ index.html
-<Files "index.html">
-        Allow from all
-</Files>
-<Files ".">
-        Allow from all
-</Files>
-
