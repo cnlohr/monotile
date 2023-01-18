@@ -1,5 +1,7 @@
 # monotile
 
+I'm probably going to turn this into a weird pixel thing.  But, for now... It's mostly a test to see just how simple it can be to use github identities.
+
 If setting this up as a new repo, will need auth app here: https://github.com/apps/monotileapp
 
 Based on https://docs.github.com/en/developers/apps/building-oauth-apps/authorizing-oauth-apps
