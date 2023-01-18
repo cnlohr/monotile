@@ -26,7 +26,7 @@ int main()
 		if( semi ) *semi = 0;
 
 		sqlite3 * db;
-		int rc = sqlite3_open( "../monotile.db", &db);
+		int rc = sqlite3_open( "../data/monotile.db", &db);
 		if (rc != SQLITE_OK)
 		{
 			printf( "Could not open database: %s\n", sqlite3_errmsg(db));
@@ -46,7 +46,7 @@ int main()
 	}
 
 	printf( "Logged Out.<br>Redirecting: <a href=mainapp.html>Main App</a>" );
-	printf( "<script>setTimeout( () => { window.location.href='mainapp.html'; }, 1000 );</script>" );
+	printf( "<script>setTimeout( () => { window.location.href='mainapp.html'; }, 100 );</script>" );
 	printf( "</body></html>" );
 
 	return 0;

@@ -46,7 +46,7 @@ int main( int argc, char ** argv )
 	if( strlen( code ) < 1 ) goto badcode;
 
 	char authline[1024];
-	FILE * fPrivateAppAuth = fopen( "../.privateappauth", "r" );
+	FILE * fPrivateAppAuth = fopen( "../data/.privateappauth", "r" );
 	if( !fPrivateAppAuth ) goto badauthinternal;
 	if( 0 == fgets( authline, 1024, fPrivateAppAuth ) ) goto badauthinternal;
 	char * authnewline = strchr( authline, '\n' );
@@ -164,7 +164,7 @@ int main( int argc, char ** argv )
 	// Pair loginname with identitycookie
 
 	sqlite3 *db;
-	int rc = sqlite3_open( "../monotile.db", &db);
+	int rc = sqlite3_open( "../data/monotile.db", &db);
 	if (rc != SQLITE_OK)
 	{
 		printf( "Could not open database: %s\n", sqlite3_errmsg(db));
@@ -183,7 +183,7 @@ int main( int argc, char ** argv )
 	}
 
 	printf( "Redirecting: <a href=mainapp.html>Main App</a>" );
-	printf( "<script>setTimeout( () => { window.location.href='mainapp.html'; }, 1000 );</script>" );
+	printf( "<script>setTimeout( () => { window.location.href='mainapp.html'; }, 100 );</script>" );
 //	printf( "<xmp>%s</xmp>", user_data.str );
 //	printf( "<xmp>%s</xmp>", avatarurl );
 	printf( "</body></html>" );
