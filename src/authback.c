@@ -182,8 +182,8 @@ int main( int argc, char ** argv )
 		return 0;
 	}
 
-	printf( "Redirecting: <a href=mainapp.html>Main App</a>" );
-	printf( "<script>setTimeout( () => { window.location.href='mainapp.html'; }, 100 );</script>" );
+	printf( "Redirecting: <a href=index.html>Main App</a>" );
+	printf( "<script>setTimeout( () => { window.location.href='index.html'; }, 100 );</script>" );
 //	printf( "<xmp>%s</xmp>", user_data.str );
 //	printf( "<xmp>%s</xmp>", avatarurl );
 	printf( "</body></html>" );

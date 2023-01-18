@@ -45,8 +45,8 @@ int main()
 		}
 	}
 
-	printf( "Logged Out.<br>Redirecting: <a href=mainapp.html>Main App</a>" );
-	printf( "<script>setTimeout( () => { window.location.href='mainapp.html'; }, 100 );</script>" );
+	printf( "Logged Out.<br>Redirecting: <a href=index.html>Main App</a>" );
+	printf( "<script>setTimeout( () => { window.location.href='index.html'; }, 100 );</script>" );
 	printf( "</body></html>" );
 
 	return 0;
