@@ -6,10 +6,10 @@ app/authback.cgi : src/authback.c
 app/logout.cgi : src/logout.c
 	gcc -o $@ $^ -Os -s -lsqlite3
 
-install : app/logout.cgi app/authback.cgi
-	sudo mkdir -p /usr/local/cgi-bin/monotile/
-	sudo cp $^ /usr/local/cgi-bin/monotile/
-	sudo chown -R www-data:www-data /usr/local/cgi-bin/monotile
+install : app/logout.cgi app/authback.cgi app/index.html
+	sudo mkdir -p /var/www/html/monotile/
+	sudo cp app/* /var/www/html/monotile/
+	sudo chown -R www-data:www-data /var/www/html/monotile
 	sudo cp monotile.conf /etc/apache2/conf-available/
 	sudo a2enconf monotile
 	sudo service apache2 reload
