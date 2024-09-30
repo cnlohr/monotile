@@ -3,7 +3,7 @@
 ## Setup
 
 ```
-sudo apt-get install libcurl3-dev
+sudo apt-get install libcurl3-dev libsqlite3-dev
 make
 
 ```
