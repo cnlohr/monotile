@@ -5,6 +5,8 @@
 #include <sqlite3.h>
 #include "common.h"
 
+#include <sys/random.h>
+
 struct strpair_t { int len; char * str; };
 
 size_t curlback_strpair( char *ptr, size_t size, size_t nmemb, void *userdata )
@@ -20,22 +22,32 @@ size_t curlback_strpair( char *ptr, size_t size, size_t nmemb, void *userdata )
 
 int main( int argc, char ** argv )
 {
-	char identitycookie[65];
+	char identitycookie[129];
 	int i;
 	{
 		int rd;
 		unsigned char rrd[64] = { 0 };
-		FILE * dr = fopen( "/dev/random", "rb" );
-		rd = fread( rrd, 64, 1, dr );
-		if( rd != 1 ) goto norand;
-		fclose( dr );
+		//FILE * dr = fopen( "/dev/random", "rb" );
+		//if( !rd ) goto norand;
+		//rd = fread( rrd, 64, 1, dr );
+		//if( rd != 1 ) goto norand;
+		//fclose( dr );
+		rd = getrandom( rrd, sizeof( rrd ), 0 );
+		if( rd != 64 )
+			goto norand;
+
 		for( i = 0; i < 64; i++ )
 		{
 			sprintf( identitycookie + i*2, "%02x", rrd[i] );
 		}
 		identitycookie[i] = 0;
 	}
-	char * qs = strdup( getenv( "QUERY_STRING" ) );
+	const char * qs_raw = getenv( "QUERY_STRING" );
+	if( !qs_raw )
+	{
+		goto noquerystring;
+	}
+	char * qs = strdup( qs_raw );
 	//Extract "Code"
 	char * code = strstr( qs, "code=" );
 	if( !code ) goto badcode;
@@ -54,7 +66,6 @@ int main( int argc, char ** argv )
 	fclose( fPrivateAppAuth );
 
 	CURLcode res;
-
 	char * access_token = 0;
 
 	struct strpair_t auth_reply = { 0 };
@@ -85,6 +96,7 @@ int main( int argc, char ** argv )
 	}
 
 	struct strpair_t user_data = { 0 };
+	char * userurl = 0;
 	char * loginname = 0;
 	char * avatarurl = 0;
 	{
@@ -107,6 +119,11 @@ int main( int argc, char ** argv )
 		curl_easy_cleanup(curl);
 		if( res ) goto curlcodefail;
 		if( user_data.len == 0 ) goto internalcurlerror2;
+
+		FILE * fl = fopen( "../data/log.txt", "a" );
+		fprintf( fl, "%s\n", user_data.str );
+		fclose( fl );
+
 		// user_data should be filled out, now.  Extract user login name.
 		const char * loginnamebase = strstr( user_data.str, "\"login\":\"" );
 		if( !loginnamebase ) goto userloginmissing;
@@ -114,10 +131,19 @@ int main( int argc, char ** argv )
 		const char * liend = strchr( loginnamebase, '\"' );
 		if( !liend ) goto userloginmissing;
 		int loginnamelen = liend - loginnamebase;
-
 		loginname = malloc( loginnamelen + 1 );
 		memcpy( loginname, loginnamebase, loginnamelen );
 		loginname[loginnamelen] = 0;
+
+		const char * userurlbase = strstr( user_data.str, "\"url\":\"" );
+		if( !userurlbase ) goto userloginmissing;
+		userurlbase += strlen( "\"url\":\"" );
+		const char * lienduu = strchr( userurlbase, '\"' );
+		if( !lienduu ) goto userloginmissing;
+		int userurllen = lienduu - userurlbase;
+		userurl = malloc( userurllen + 1 );
+		memcpy( userurl, userurlbase, userurllen );
+		userurl[userurllen] = 0;
 
 		const char * avu = "\"avatar_url\":\"";
 		int avulen = strlen( avu );
@@ -164,7 +190,7 @@ int main( int argc, char ** argv )
 	// Pair loginname with identitycookie
 
 	sqlite3 *db;
-	int rc = sqlite3_open( "../data/monotile.db", &db);
+	int rc = sqlite3_open( "../data/database/monotile.db", &db);
 	if (rc != SQLITE_OK)
 	{
 		printf( "Could not open database: %s\n", sqlite3_errmsg(db));
@@ -173,7 +199,7 @@ int main( int argc, char ** argv )
 	}
 
 	char * errmsg = 0;
-	char * query = sqlite3_mprintf( "insert into logins values ('%q','%q', date('now'));", identitycookie, loginname );
+	char * query = sqlite3_mprintf( "insert into logins values ('%q','%q','%q', date('now'));", identitycookie, loginname, userurl );
 	rc = sqlite3_exec( db, query, 0, 0, &errmsg );
 	if( rc )
 	{
@@ -191,28 +217,40 @@ int main( int argc, char ** argv )
 
 	return 0;
 badcode:
+	printf( "Content-Type: text/html\r\n\r\n" );
 	printf( "Error: Auth failed.  No Access Code.\n" );
 	return 0;
 norand:
-	printf( "Content-Type: text/html\r\n\r\nError: Cookie generation code failed.\n" );
+	printf( "Content-Type: text/html\r\n\r\n" );
+	printf( "Error: Cookie generation code failed.\n" );
 	return 0;
 badauthinternal:
+	printf( "Content-Type: text/html\r\n\r\n" );
 	printf( "Error: Bad Internal Auth Configuration\n" );
 	return 0;
 internalcurlerror:
+	printf( "Content-Type: text/html\r\n\r\n" );
 	printf( "Error: Internal CURL error.\n" );
 	return 0;
 internalcurlerror2:
+	printf( "Content-Type: text/html\r\n\r\n" );
 	printf( "Error: Internal CURL error (in reply).\n" );
 	return 0;
 curlcodefail:
+	printf( "Content-Type: text/html\r\n\r\n" );
 	printf( "Error: Curl code fail: %d\n", res );
 	return 0;
 authreplyfail:
+	printf( "Content-Type: text/html\r\n\r\n" );
 	printf( "Error: Remote Auth: %s\n", auth_reply.str );
 	return 0;
 userloginmissing:
+	printf( "Content-Type: text/html\r\n\r\n" );
 	printf( "Error: Remote Auth: %s\n", auth_reply.str );
+	return 0;
+noquerystring:
+	printf( "Content-Type: text/html\r\n\r\n" );
+	printf( "Error: Could not get query string\n" );
 	return 0;
 }
 
