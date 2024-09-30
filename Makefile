@@ -1,4 +1,6 @@
-all : app/authback.cgi app/logout.cgi app/test.cgi
+
+TARGS := app/authback.cgi app/logout.cgi app/test.cgi app/test_federate.cgi
+all : $(TARGS)
 
 app/authback.cgi : src/authback.c
 	gcc -o $@ $^ -Og -g  -lcurl -lsqlite3
@@ -6,10 +8,13 @@ app/authback.cgi : src/authback.c
 app/test.cgi : src/test.c
 	gcc -o $@ $^ -Og -g
 
+app/test_federate.cgi : src/test_federate.c
+	gcc -o $@ $^ -O2
+
 app/logout.cgi : src/logout.c
 	gcc -o $@ $^ -Og -g -lsqlite3
 
-install : app/logout.cgi app/authback.cgi app/index.html
+install : $(TARGS)
 	test -f data/.privateappauth || echo "Error: must set a private key in privateappauth, in the form client_id=XXXXXXXXXXXXX&client_secret=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 	sudo cp monotile.conf /etc/apache2/conf-available/
 	sudo a2enconf monotile
@@ -24,4 +29,4 @@ install : app/logout.cgi app/authback.cgi app/index.html
 	chmod 666 data/database/monotile.db
 
 clean :
-	rm -rf app/authback.cgi app/logout.cgi
+	rm -rf $(TARGS)

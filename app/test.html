@@ -1,0 +1,37 @@
+<HTML>
+<HEAD>
+<SCRIPT>
+
+var bytes = 0;
+
+const consume = responseReader => {
+    return responseReader.read().then(result => {
+	if( result.value )
+	{
+		bytes += result.value.length / 1000000.0;
+		document.getElementById( "status" ).innerHTML = bytes;
+	}
+	else
+	{
+		console.log( result );
+	}
+        if (result.done) { return; }
+
+        // do something with the current chunk
+        const chunk = result.value;
+
+        return consume(responseReader);
+    });
+}
+
+fetch("test_federate.cgi").then(response => {
+    return consume(response.body.getReader());
+}).catch(console.log.bind(console));
+
+
+</SCRIPT>
+</HEAD>
+<BODY>
+<DIV ID=status></DIV>
+</BODY>
+</HTML>
