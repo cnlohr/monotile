@@ -4,8 +4,13 @@
 
 ```
 sudo apt-get install libcurl3-dev libsqlite3-dev
-make
+```
 
+If using Apache,
+
+```
+sudo apt-get install apache2
+make install
 ```
 
 I'm probably going to turn this into a weird pixel thing.  But, for now... It's mostly a test to see just how simple it can be to use github identities.
