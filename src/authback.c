@@ -199,7 +199,17 @@ int main( int argc, char ** argv )
 	}
 
 	char * errmsg = 0;
-	char * query = sqlite3_mprintf( "insert into logins values ('%q','%q','%q', date('now'));", identitycookie, loginname, userurl );
+	char * query = sqlite3_mprintf( "insert into logins(key, name, userurl, logintime) values ('%q','%q','%q', date('now'));", identitycookie, loginname, userurl );
+	rc = sqlite3_exec( db, query, 0, 0, &errmsg );
+	if( rc )
+	{
+		printf( "Error on query: %s / %s %d\n", query, errmsg, rc );
+		sqlite3_close(db);
+		return 0;
+	}
+
+	errmsg = 0;
+	query = sqlite3_mprintf( "insert into users(name) values ('%q') on conflict do nothing;", loginname );
 	rc = sqlite3_exec( db, query, 0, 0, &errmsg );
 	if( rc )
 	{

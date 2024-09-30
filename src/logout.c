@@ -26,7 +26,7 @@ int main()
 		if( semi ) *semi = 0;
 
 		sqlite3 * db;
-		int rc = sqlite3_open( "../data/monotile.db", &db);
+		int rc = sqlite3_open( "../data/database/monotile.db", &db);
 		if (rc != SQLITE_OK)
 		{
 			printf( "Could not open database: %s\n", sqlite3_errmsg(db));

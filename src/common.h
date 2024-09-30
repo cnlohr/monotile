@@ -1,6 +1,33 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
+char * CookieCopy( const char * cookiename )
+{
+	const char * cookie_raw = getenv( "HTTP_COOKIE" );
+	if( !cookie_raw ) return 0;
+	int matchlen = strlen( cookiename ) + 4;
+	char * matchstr = alloca( matchlen );
+	sprintf( matchstr, "; %s=", cookiename );
+	const char * match = 0;
+	if( memcmp( cookie_raw, matchstr+2, matchlen - 3 ) == 0 )
+	{
+		match = cookie_raw;
+		matchlen -= 2;
+	}
+	else
+	{
+		const char * match = strstr( cookie_raw, matchstr );
+		if( !match ) return 0;
+	}
+	match += matchlen - 1;
+	const char * matchend = strstr( match, ";" );
+	if( !matchend ) return 0;
+	int valuelen = matchend - match + 1;
+	char * ret = malloc( valuelen );
+	memcpy( ret, match, valuelen-1 );
+	ret[valuelen-1] = 0;
+	return ret;
+}
 
 static int isclean( const char * str )
 {
