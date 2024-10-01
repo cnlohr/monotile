@@ -10,6 +10,7 @@ const consume = responseReader => {
 	{
 		bytes += result.value.length / 1000000.0;
 		document.getElementById( "status" ).innerHTML = bytes;
+		console.log( result.value );
 	}
 	else
 	{
@@ -24,7 +25,11 @@ const consume = responseReader => {
     });
 }
 
-fetch("test_federate.cgi").then(response => {
+//fetch("test_federate.cgi").then(response => {
+//    return consume(response.body.getReader());
+//}).catch(console.log.bind(console));
+
+fetch("stream.cgi").then(response => {
     return consume(response.body.getReader());
 }).catch(console.log.bind(console));
 

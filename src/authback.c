@@ -199,7 +199,7 @@ int main( int argc, char ** argv )
 	}
 
 	char * errmsg = 0;
-	char * query = sqlite3_mprintf( "insert into logins(key, name, userurl, logintime) values ('%q','%q','%q', date('now'));", identitycookie, loginname, userurl );
+	char * query = sqlite3_mprintf( "insert into logins(key, name, userurl, logintime, valid) values ('%q','%q','%q', datetime('now'), TRUE);", identitycookie, loginname, userurl );
 	rc = sqlite3_exec( db, query, 0, 0, &errmsg );
 	if( rc )
 	{

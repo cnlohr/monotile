@@ -1,5 +1,13 @@
 <html>
 <head>
+<style>
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+</style>
 <script>
 function getCookie(cname) {
 	let name = cname + "=";
@@ -25,7 +33,7 @@ function sysload()
 	{
 		console.log( "No username found" );
 		let loginurl = "https://github.com/login/oauth/authorize?client_id=4a55dbe35237fa207491&state=" + Math.random();
-		loginelem.innerHTML = '<a href="' + loginurl + '">Github Auth</a> (TODO: Warn about Cookies)';
+		loginelem.innerHTML = '<a href="' + loginurl + '">Github Auth</a>';
 	}
 	else
 	{
@@ -39,12 +47,24 @@ function sysload()
 </script>
 <body onload=sysload()>
 
-<table border=1>
+<table border=1 style="height:100%;width:100%; position: absolute; top: 0; bottom: 0; left: 0; right: 0;border:1px solid">
 <tr><td>
 <div id=loginprops>
 identity
 </div>
-<td><div id=hud></div>
+</td>
+<td width=100%><div id=hud>hud</div>
+</td></tr>
+<tr><td height=100% colspan=2>
+body
+<form action="https://cnvr.io/monotile/plot.cgi" method="post">
+<input type="hidden" name="test" value="value" >
+<input type="hidden" name="test1" value="value1" >
+<input type="text" name="cx">
+<input type="text" name="cy">
+<input type="text" name="color">
+<input type="submit" value="Send Request" />
+</form>
 </td></tr>
 </table>
 

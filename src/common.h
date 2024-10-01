@@ -1,7 +1,15 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
-char * CookieCopy( const char * cookiename )
+#include <string.h>
+#include <errno.h>
+#include <limits.h>
+
+#define BLOCKSIZE 32
+#define GRIDSIZEX 2048
+#define GRIDSIZEY 2048
+
+static char * CookieCopy( const char * cookiename )
 {
 	const char * cookie_raw = getenv( "HTTP_COOKIE" );
 	if( !cookie_raw ) return 0;
@@ -16,18 +24,106 @@ char * CookieCopy( const char * cookiename )
 	}
 	else
 	{
-		const char * match = strstr( cookie_raw, matchstr );
+		match = strstr( cookie_raw, matchstr );
 		if( !match ) return 0;
 	}
 	match += matchlen - 1;
 	const char * matchend = strstr( match, ";" );
-	if( !matchend ) return 0;
+	if( !matchend )
+		matchend = match + strlen( match );
 	int valuelen = matchend - match + 1;
 	char * ret = malloc( valuelen );
 	memcpy( ret, match, valuelen-1 );
 	ret[valuelen-1] = 0;
 	return ret;
 }
+
+static char * ReadPostData()
+{
+	char * postdata = malloc(1);
+	postdata[0] = 0;
+	int postdatalen = 0;
+	for(;;)
+	{
+		int c = fgetc( stdin );
+		if( c != EOF )
+		{
+			postdata[postdatalen++] = c;
+			postdata = realloc( postdata, postdatalen+1 );
+			postdata[postdatalen] = 0;
+		}
+		else
+		{
+			break;
+		}
+	}
+	return postdata;
+}
+
+// Returns malloc'd memory, also still url-encoded.
+static char * GetPostField( const char * request, const char * fieldid )
+{
+	if( !request ) return 0;
+	int matchlen = strlen( fieldid ) + 3;
+	char * matchstr = alloca( matchlen );
+	sprintf( matchstr, "&%s=", fieldid );
+	const char * match = 0;
+	if( memcmp( request, matchstr+1, matchlen - 2 ) == 0 )
+	{
+		match = request;
+		matchlen -= 1;
+	}
+	else
+	{
+		match = strstr( request, matchstr );
+		if( !match ) return 0;
+	}
+	match += matchlen - 1;
+	const char * matchend = strstr( match, "&" );
+	if( !matchend )
+		matchend = match + strlen( match );
+	int valuelen = matchend - match + 1;
+	char * ret = malloc( valuelen );
+	memcpy( ret, match, valuelen-1 );
+	ret[valuelen-1] = 0;
+	return ret;
+}
+
+long long GetPostFieldInt64( const char * request, const char * fieldid )
+{
+	if( !request ) return LLONG_MIN;
+	int matchlen = strlen( fieldid ) + 3;
+	char * matchstr = alloca( matchlen );
+	sprintf( matchstr, "&%s=", fieldid );
+	const char * match = 0;
+	if( memcmp( request, matchstr+1, matchlen - 2 ) == 0 )
+	{
+		match = request;
+		matchlen -= 1;
+	}
+	else
+	{
+		match = strstr( request, matchstr );
+		if( !match ) return LLONG_MIN;
+	}
+	match += matchlen - 1;
+	const char * matchend = strstr( match, "&" );
+	if( !matchend )
+		matchend = match + strlen( match );
+	int valuelen = matchend - match + 1;
+	char * ret = malloc( valuelen );
+	memcpy( ret, match, valuelen-1 );
+	ret[valuelen-1] = 0;
+
+	char * retend = 0;
+	long long retval = strtol( ret, &retend, 10 );
+	if( errno == ERANGE )
+	{
+		return LLONG_MIN;
+	}
+	return retval;
+}
+
 
 static int isclean( const char * str )
 {
