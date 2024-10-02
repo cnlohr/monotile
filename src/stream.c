@@ -10,7 +10,6 @@
 #include <poll.h>
 #include <sys/inotify.h>
 
-
 // For testing with curl --raw -i https://cnvr.io/monotile/stream.cgi
 
 int64_t lastpid = 0;
@@ -86,6 +85,7 @@ int main()
 		FILE * f = fopen( "../data/grid.dat", "rb" );
 		int x, y;
 		uint8_t line[GRIDSIZEX+1];
+		char lineo[GRIDSIZEX*4+2];
 		line[GRIDSIZEX] = '\n';
 		for( y = 0; y < GRIDSIZEY; y++ )
 		{
@@ -96,8 +96,11 @@ int main()
 				sqlite3_close(db);
 				return 0;
 			}
-			printf( "L,%d,%d,", y, GRIDSIZEX );
-			fwrite( line, sizeof( line ), 1, stdout );
+
+			int e = CNURLEncode( lineo, sizeof( lineo )-1, line, GRIDSIZEX );
+			printf( "L,%d,%d,%d,", y, GRIDSIZEX, e );
+			lineo[e] = '\n';
+			fwrite( lineo, e+1, 1, stdout );
 		}
 		fclose( f );
 	}

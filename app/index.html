@@ -3,22 +3,28 @@
 <style>
 html,
 body {
-  height: 100%;
-  margin: 0;
+	height: 100%;
+	margin: 0;
 }
 
 .maincanvas {
-    position: absolute;
-    left: 0px;
+	position: absolute;
+	left: 0px;
 	top: 0px;
-    z-index: -5;
+	z-index: -5;
 }
 
 </style>
 <script>
+
+var fetchsignal;
 var canvasCtx;
 var canvas;
 var maindiv;
+
+var MapW = 0;
+var MapH = 0;
+var BlockSize = 0;
 
 function getCookie(cname) {
 	let name = cname + "=";
@@ -38,8 +44,8 @@ function getCookie(cname) {
 
 function frame()
 {
-    canvas.width = maindiv.clientWidth;
-    canvas.height = maindiv.clientHeight;
+	canvas.width = maindiv.clientWidth;
+	canvas.height = maindiv.clientHeight;
 
 	canvasCtx.fillStyle = "blue";
 	canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
@@ -51,24 +57,113 @@ function frame()
 	window.requestAnimationFrame( frame );
 }
 
+var linesofar = new Uint8Array(8192);
+var linepl = 0;
+
+function ResetStreamReader()
+{
+	linepl = 0;
+}
+
+function CompleteMessage( linesofar )
+{
+	var string = new TextDecoder().decode(new Uint8Array(linesofar.buffer, 0, linepl ) );
+	linepl = 0;
+	var splits = string.split( "," );
+	if( splits[0] == 'S' )
+	{
+		if( splits.length < 3 )
+		{
+			console.log( "S command too short: " + string );
+			return;
+		}
+		MapW = Number( splits[1] ) | 0;
+		MapH = Number( splits[2] ) | 0;
+		BlockSize = Number( splits[3] ) | 0;
+		console.log( MapW + " " + MapH + " " + BlockSize );
+	}
+	else if( splits[0] == 'L' )
+	{
+		// Line
+		if( splits.length < 4 )
+		{
+			console.log( "L command too short: " + string );
+			return;
+		}
+	}
+	else if( splits[0] == 'P' )
+	{
+		// Pixel
+		if( splits.length < 5 )
+		{
+			console.log( "P command too short: " + string );
+			return;
+		}
+//		console.log( decodeURI( splits[4] ) );
+	}
+}
+
+
+function ParseStream( s )
+{
+	for( var i = 0|0; i < s.length; i++ )
+	{
+		var c = s[i];
+		if( linepl >= linesofar.length )
+		{
+			console.log( "Line overflow" );	
+			fetchsignal.abort();
+			setTimeout( connectForStream, 100 );
+			return;
+		}
+		linesofar[ linepl++ ] = c;
+		if( c == 10 )
+		{
+			CompleteMessage( linesofar );
+		}
+	}
+}
+
 
 const consume = responseReader => {
-    return responseReader.read().then(result => {
+	return responseReader.read().then(result => {
 		if( result.value )
 		{
-			// result.value = uint8array.
-			console.log( result.value );
+			ParseStream( result.value );
 		}
 		else
 		{
-			console.log( result );
+			console.log( "No result value" );
+			fetchsignal.abort();
+			setTimeout( connectForStream, 100 );
 		}
-		if (result.done) { return; }
-
-		// do something with the current chunk
-		const chunk = result.value;
+		if (result.done)
+		{
+			// Reconnect.
+			console.log( "Reconnecting" );
+			setTimeout( connectForStream, 100 );
+			return;
+		}
 		return consume(responseReader);
-    });
+	});
+}
+
+function connectForStream()
+{
+	if( fetchsignal ) fetchsignal.abort();
+	ResetStreamReader();
+
+	fetchsignal = new AbortController();
+	try
+	{
+		linepl = 0;
+		fetch( "stream.cgi", { signal : fetchsignal.signal } ).then( response => {
+			return consume(response.body.getReader());
+		} );
+	} catch(error) {
+		console.log(error);
+		setTimeout( connectForStream, 100 );
+	}
 }
 
 function sysload()
@@ -96,9 +191,8 @@ function sysload()
 
 	window.requestAnimationFrame( frame );
 
-	fetch("stream.cgi").then(response => {
-		return consume(response.body.getReader());
-	}).catch(console.log.bind(console));
+	setTimeout( connectForStream, 100 );
+
 }
 </script>
 <body onload=sysload()>
