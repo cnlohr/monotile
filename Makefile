@@ -18,7 +18,7 @@ app/plot.cgi : src/plot.c
 	gcc -o $@ $^ -Og -g -lsqlite3
 
 app/stream.cgi : src/stream.c
-	gcc -o $@ $^ -Og -g
+	gcc -o $@ $^ -Og -g -lsqlite3
 
 
 install : $(TARGS)

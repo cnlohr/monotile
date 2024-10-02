@@ -7,13 +7,40 @@
 #include "os_generic.h"
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <poll.h>
+#include <sys/inotify.h>
+
+
+// For testing with curl --raw -i https://cnvr.io/monotile/stream.cgi
+
+int64_t lastpid = 0;
+int64_t firstpid = 0;
+int64_t startpid = 0;
+
+static int rxpixel(void *opaque, int argc, char **argv, char **azColName){
+	int i;
+
+	if( argc != 5 )
+	{
+		printf( "Error: Invalid response from sqlite3\n" );
+		exit( 0 );
+	}
+
+	lastpid = atoi( argv[0] );
+
+	if( lastpid != startpid )
+		printf( "P,%s,%s,%s,%s,%s\n", argv[0], argv[1], argv[2], argv[3], argv[4] );
+
+	if( firstpid == 0 )
+		firstpid = lastpid;
+	return 0;
+}
+
 
 int main()
 {
+	char * postdata = ReadPostData();
+
 	printf( "Transfer-Encoding: chunked\r\n" );
 	printf( "Content-Type: application/octet-stream\r\n\r\n" );
 
@@ -25,42 +52,127 @@ int main()
 		return 0;
 	}
 
-    struct sockaddr_in server = { 0 };
-	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = inet_addr( "127.0.0.44" );
-	server.sin_port = htons( 7788 );
+	fflush( stdout );
 
-	int opt = 1;
-	if ( setsockopt( sockfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt) ) )
+	sqlite3 *db;
+	int rc = sqlite3_open_v2( "../data/database/monotile.db", &db, SQLITE_OPEN_READONLY, 0 );
+	if (rc != SQLITE_OK)
 	{
-		printf( "Error: Could not set socket to reuse %s\n", strerror( errno ) );
-		return 0;		
-	}
-
-	if( bind( sockfd, (struct sockaddr*)&server, sizeof( server ) ) < 0 )
-	{
-		printf( "Error: Could not bind to broad socket %s\n", strerror( errno ) );
+		printf( "Error: Could not open database: %s\n", sqlite3_errmsg(db));
+		sqlite3_close(db);
 		return 0;
 	}
 
-	// For testing with curl --raw -i https://cnvr.io/monotile/stream.cgi
-	printf( "Bound and listening\n" );
-	fflush( stdout );
+	printf( "S,%d,%d,%d\n", GRIDSIZEX, GRIDSIZEY, BLOCKSIZE );
+
+	startpid = GetPostFieldInt64( postdata, "startpid" );
+	if( startpid <= 0 )
+	{
+		startpid = 0;
+		char * errmsg = 0;
+		char * query = sqlite3_mprintf( "select * from (select pid, cx, cy, color, lid from pixels where pid>=%d and removed!=TRUE order by pid desc limit 1) order by pid asc;", startpid );
+		int recs = 0;
+		firstpid = 0;
+		lastpid = 0;
+		rc = sqlite3_exec( db, query, rxpixel, 0, &errmsg );
+		if( rc )
+		{
+			printf( "Error: on query: %s / %s %d\n", query, errmsg, rc );
+			sqlite3_close(db);
+			return 0;
+		}
+		startpid = lastpid;
+
+		FILE * f = fopen( "../data/grid.dat", "rb" );
+		int x, y;
+		uint8_t line[GRIDSIZEX+1];
+		line[GRIDSIZEX] = '\n';
+		for( y = 0; y < GRIDSIZEY; y++ )
+		{
+			int l = fread( line, GRIDSIZEX, 1, f );
+			if( l != 1 )
+			{
+				printf( "Error: Error reading grid file\n" );
+				sqlite3_close(db);
+				return 0;
+			}
+			printf( "L,%d,%d,", y, GRIDSIZEX );
+			fwrite( line, sizeof( line ), 1, stdout );
+		}
+		fclose( f );
+	}
+
+	int inotifyfd = inotify_init1( IN_NONBLOCK );
+	int hostname_watch = inotify_add_watch( inotifyfd, "../data/grid.dat", IN_MODIFY | IN_CREATE );
+	if( hostname_watch < 0 )
+	{
+		printf( "Error: inotify cannot watch file\n" );
+		sqlite3_close(db);
+		return 0;
+	}
 
 	for(;;)
 	{
-		uint8_t buf[4000];
-		ssize_t r = recv( sockfd, buf, sizeof( buf ), 0 );
-		if( r )
+		char * errmsg = 0;
+		char * query = sqlite3_mprintf( "select * from (select pid, cx, cy, color, lid from pixels where pid>=%d and removed!=TRUE order by pid desc limit 1000) order by pid asc;", startpid );
+		int recs = 0;
+
+		firstpid = 0;
+		lastpid = 0;
+		rc = sqlite3_exec( db, query, rxpixel, 0, &errmsg );
+		if( rc )
 		{
+			printf( "Error: on query: %s / %s %d\n", query, errmsg, rc );
+			sqlite3_close(db);
+			return 0;
 		}
-			printf( "Received %d\n", r );
-			fflush( stdout );
+		if( startpid != firstpid && startpid > 0 )
+		{
+			printf( "Error: Ran off the end of the list (%ld %ld %ld)\n", startpid, lastpid, firstpid );
+			return 0;
+		}
+
+		startpid = lastpid;
+
+		fflush( stdout );
+
+		struct pollfd fds[3] = {
+			{ .fd = inotifyfd, .events = POLLIN, .revents = 0 },
+			{ .fd = 1, .events = POLLERR, .revents = 0 },
+			{ .fd = 0, .events = POLLERR, .revents = 0 },
+		};
+
+		// Make poll wait for literally forever.
+		int r = poll( fds, 3, 60000 );
+
+		if( r == 0 )
+		{
+			// Timeout, make client try again.
+			return 0;
+		}
+
+		if( ( fds[1].revents | fds[2].revents ) & ( POLLHUP | POLLERR ) )
+		{
+			// Disconnected from other end.
+			return 0;
+		}
+
+		if ( ! ( fds[0].revents & POLLIN ) )
+		{
+			// Other, unknown thing - we totally should only be continuing if we have an event.
+			printf( "Error: Confusing poll reply.\n" );
+			return 0;
+		}
+
+		struct inotify_event event;
+		r = read( inotifyfd, &event, sizeof( event ) );
+		if( r < 12 )
+		{
+			printf( "Error: Confusing inotify message\n" );
+			return 0;
+		}
 	}
 
-	close( sockfd );
-
-	printf( "Ok" );
 	return 0;
 }
 
