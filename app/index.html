@@ -99,7 +99,11 @@ function CompleteMessage( linesofar )
 			console.log( "P command too short: " + string );
 			return;
 		}
-//		console.log( decodeURI( splits[4] ) );
+		console.log( decodeURI( splits[4] ) );
+	}
+	else
+	{
+		console.log(  "X" + splits[0] );
 	}
 }
 
@@ -148,16 +152,54 @@ const consume = responseReader => {
 	});
 }
 
+
+const stream = new ReadableStream({
+  async start(controller) {
+    await wait(5000);
+    controller.enqueue('This ');
+    await wait(1000);
+    controller.enqueue('is ');
+    await wait(1000);
+    controller.enqueue('a ');
+    await wait(1000);
+    controller.enqueue('slow ');
+    await wait(1000);
+    controller.enqueue('request.');
+    controller.close();
+  },
+}).pipeThrough(new TextEncoderStream());
+
 function connectForStream()
 {
 	if( fetchsignal ) fetchsignal.abort();
 	ResetStreamReader();
 
+	const rs = new ReadableStream({
+		async pull(controller) {
+
+			await wait(3000);
+			controller.enqueue('slow ');
+
+			await wait(1000);
+			controller.enqueue('slow ');
+
+		},
+	  });
+	
+
 	fetchsignal = new AbortController();
 	try
 	{
 		linepl = 0;
-		fetch( "stream.cgi", { signal : fetchsignal.signal } ).then( response => {
+		fetch( "stream.cgi", {
+			method: 'POST',
+			headers : {
+				//"Content-Type": "application/octet-stream",
+				//"Transfer-Encoding": "chunked"
+			},
+			body : rs,
+			signal : fetchsignal.signal,
+		 } ).then( response => {
 			return consume(response.body.getReader());
 		} );
 	} catch(error) {

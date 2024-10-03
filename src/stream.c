@@ -38,18 +38,14 @@ static int rxpixel(void *opaque, int argc, char **argv, char **azColName){
 
 int main()
 {
-	char * postdata = ReadPostData();
+	//char * postdata = ReadPostData();
 
 	printf( "Transfer-Encoding: chunked\r\n" );
-	printf( "Content-Type: application/octet-stream\r\n\r\n" );
-
-	// Notify any potential listeners.
-	int sockfd = socket( AF_INET, SOCK_DGRAM, 0 );
-	if( sockfd < 0 )
-	{
-		printf( "Error: could not notify broad socket\n" );
-		return 0;
-	}
+	printf( "X-Accel-Buffering: no\r\n" );
+	printf( "cache-control: no-cache\r\n" );
+	printf( "retry: 1000\r\n" );
+	printf( "Connection: keep-alive\r\n" );
+	printf( "Content-Type: text/event-stream\r\n\r\n" ); // application/octet-stream
 
 	fflush( stdout );
 
@@ -63,8 +59,9 @@ int main()
 	}
 
 	printf( "S,%d,%d,%d\n", GRIDSIZEX, GRIDSIZEY, BLOCKSIZE );
+	fflush( stdout );
 
-	startpid = GetPostFieldInt64( postdata, "startpid" );
+	startpid = 0; //GetPostFieldInt64( postdata, "startpid" );
 	if( startpid <= 0 )
 	{
 		startpid = 0;
@@ -82,6 +79,8 @@ int main()
 		}
 		startpid = lastpid;
 
+
+#if 0
 		FILE * f = fopen( "../data/grid.dat", "rb" );
 		int x, y;
 		uint8_t line[GRIDSIZEX+1];
@@ -103,6 +102,7 @@ int main()
 			fwrite( lineo, e+1, 1, stdout );
 		}
 		fclose( f );
+#endif
 	}
 
 	int inotifyfd = inotify_init1( IN_NONBLOCK );
@@ -141,8 +141,8 @@ int main()
 
 		struct pollfd fds[3] = {
 			{ .fd = inotifyfd, .events = POLLIN, .revents = 0 },
-			{ .fd = 1, .events = POLLERR, .revents = 0 },
-			{ .fd = 0, .events = POLLERR, .revents = 0 },
+			{ .fd = 1, .events = POLLERR | POLLRDNORM | POLLHUP, .revents = 0 },
+			{ .fd = 0, .events = POLLERR | POLLHUP, .revents = 0 },
 		};
 
 		// Make poll wait for literally forever.
@@ -160,19 +160,42 @@ int main()
 			return 0;
 		}
 
-		if ( ! ( fds[0].revents & POLLIN ) )
+		if( fds[1].revents & POLLRDNORM )
 		{
-			// Other, unknown thing - we totally should only be continuing if we have an event.
-			printf( "Error: Confusing poll reply.\n" );
-			return 0;
+			uint8_t buffer[2048];
+			uint8_t lineo[4096];
+			int r = read( 1, buffer, sizeof( buffer ) );
+			int e = CNURLEncode( lineo, sizeof( lineo )-1, buffer, r );
+			printf( "I,%d,%d,%s,\n", r, e, lineo );
+			//uint8_t spare[32768];
+			//memset( spare, 'a', 32768 );
+			//fwrite( spare, 32768, 1, stdout );
+			
+			FILE * fl = fopen( "../data/log.txt", "a" );
+			fprintf( fl, "%s\n", buffer );
+			fclose( fl );
+			fflush( stdout );
+			if( r == 0 )
+			{
+				printf( "EXIT1\n"); fflush(stdout); sleep(1);
+				printf( "EXIT2\n"); fflush(stdout); sleep(1);
+				printf( "EXIT3\n"); fflush(stdout); sleep(1);
+				printf( "EXIT4\n"); fflush(stdout); sleep(1);
+				printf( "EXIT5\n" );
+				return 0;
+			}
 		}
 
-		struct inotify_event event;
-		r = read( inotifyfd, &event, sizeof( event ) );
-		if( r < 12 )
+
+		if ( fds[0].revents & POLLIN )
 		{
-			printf( "Error: Confusing inotify message\n" );
-			return 0;
+			struct inotify_event event;
+			r = read( inotifyfd, &event, sizeof( event ) );
+			if( r < 12 )
+			{
+				printf( "Error: Confusing inotify message\n" );
+				return 0;
+			}
 		}
 	}
 
