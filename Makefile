@@ -1,5 +1,5 @@
 
-TARGS := app/authback.cgi app/logout.cgi app/test.cgi app/test_federate.cgi app/test_federate_in.cgi app/plot.cgi app/stream.cgi
+TARGS := app/authback.cgi app/logout.cgi app/test.cgi app/test_federate.cgi app/plot.cgi app/stream.cgi
 all : $(TARGS)
 
 app/authback.cgi : src/authback.c
@@ -9,9 +9,6 @@ app/test.cgi : src/test.c
 	gcc -o $@ $^ -Og -g
 
 app/test_federate.cgi : src/test_federate.c
-	gcc -o $@ $^ -O2
-
-app/test_federate_in.cgi : src/test_federate_in.c
 	gcc -o $@ $^ -O2
 
 app/logout.cgi : src/logout.c

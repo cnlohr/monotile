@@ -79,8 +79,6 @@ int main()
 		}
 		startpid = lastpid;
 
-
-#if 0
 		FILE * f = fopen( "../data/grid.dat", "rb" );
 		int x, y;
 		uint8_t line[GRIDSIZEX+1];
@@ -102,7 +100,14 @@ int main()
 			fwrite( lineo, e+1, 1, stdout );
 		}
 		fclose( f );
-#endif
+	}
+
+	{
+		uint8_t buf[1024];
+		int rd_from_client = read( 1, buf, sizeof(buf) );
+		FILE * fl = fopen( "../data/log.txt", "a" );
+		fprintf( fl, "INITIAL RD: %d\n", rd_from_client );
+		fclose( fl );
 	}
 
 	int inotifyfd = inotify_init1( IN_NONBLOCK );
@@ -139,64 +144,44 @@ int main()
 
 		fflush( stdout );
 
-		struct pollfd fds[3] = {
-			{ .fd = inotifyfd, .events = POLLIN, .revents = 0 },
-			{ .fd = 1, .events = POLLERR | POLLRDNORM | POLLHUP, .revents = 0 },
-			{ .fd = 0, .events = POLLERR | POLLHUP, .revents = 0 },
+		struct pollfd fds[2] = {
+			{ .fd = inotifyfd, .events = POLLIN,            .revents = 0 },
+			{ .fd = 0,         .events = POLLERR | POLLHUP, .revents = 0 },
 		};
 
 		// Make poll wait for literally forever.
-		int r = poll( fds, 3, 60000 );
+		int r = poll( fds, 2, 6000 );
+
+		//FILE * fl = fopen( "../data/log.txt", "a" );
+		//fprintf( fl, "%d %x %x\n", r, fds[0].revents, fds[1].revents );
+		//fclose( fl );
 
 		if( r == 0 )
 		{
-			// Timeout, make client try again.
-			return 0;
+			printf( "K\n" );
+			fflush( stdout );
+			continue;
 		}
 
-		if( ( fds[1].revents | fds[2].revents ) & ( POLLHUP | POLLERR ) )
+		if( ( fds[1].revents ) & ( POLLHUP | POLLERR ) )
 		{
 			// Disconnected from other end.
 			return 0;
 		}
 
-		if( fds[1].revents & POLLRDNORM )
-		{
-			uint8_t buffer[2048];
-			uint8_t lineo[4096];
-			int r = read( 1, buffer, sizeof( buffer ) );
-			int e = CNURLEncode( lineo, sizeof( lineo )-1, buffer, r );
-			printf( "I,%d,%d,%s,\n", r, e, lineo );
-			//uint8_t spare[32768];
-			//memset( spare, 'a', 32768 );
-			//fwrite( spare, 32768, 1, stdout );
-			
-			FILE * fl = fopen( "../data/log.txt", "a" );
-			fprintf( fl, "%s\n", buffer );
-			fclose( fl );
-			fflush( stdout );
-			if( r == 0 )
-			{
-				printf( "EXIT1\n"); fflush(stdout); sleep(1);
-				printf( "EXIT2\n"); fflush(stdout); sleep(1);
-				printf( "EXIT3\n"); fflush(stdout); sleep(1);
-				printf( "EXIT4\n"); fflush(stdout); sleep(1);
-				printf( "EXIT5\n" );
-				return 0;
-			}
-		}
-
-
 		if ( fds[0].revents & POLLIN )
 		{
 			struct inotify_event event;
 			r = read( inotifyfd, &event, sizeof( event ) );
+			printf( "INOTIFY,%d\n", r );
+			fflush( stdout );
 			if( r < 12 )
 			{
 				printf( "Error: Confusing inotify message\n" );
 				return 0;
 			}
 		}
+
 	}
 
 	return 0;

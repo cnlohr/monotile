@@ -26,3 +26,10 @@ Make a file called `data/.privateappauth` in the root of this.  It should contai
 client_id=XXXXXXXXXXXXX&client_secret=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
+
+## General Note about in-chunked requests.
+
+1. Not supported on FireFox.
+2. Poorly supported in Chrome.
+3. I gave up.
+

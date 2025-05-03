@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <style>
@@ -49,13 +50,13 @@ const consume = responseReader => {
 		{
 			console.log( "No result value" );
 			fetchsignal.abort();
-			setTimeout( connectForStream, 100 );
+			//setTimeout( connectForStream, 100 );
 		}
 		if (result.done)
 		{
 			// Reconnect.
 			console.log( "Reconnecting" );
-			setTimeout( connectForStream, 100 );
+			//setTimeout( connectForStream, 100 );
 			return;
 		}
 		return consume(responseReader);
@@ -65,9 +66,11 @@ const consume = responseReader => {
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
-const stream = new ReadableStream({
+
+
+const stream_in = new ReadableStream({
   async start(controller) {
-    await wait(5000);
+    await wait(1000);
     controller.enqueue('This ');
     await wait(1000);
     controller.enqueue('is ');
@@ -87,38 +90,6 @@ function connectForStream()
 	if( fetchsignal ) fetchsignal.abort();
 	ResetStreamReader();
 
-	const rs = new ReadableStream({
-		async pull(controller) {
-console.log( "Pull A ");
-			await wait(1000);
-console.log( "Pull B ");
-			controller.enqueue('slow ');
-console.log( "Pull C ");
-			await wait(1000);
-			controller.enqueue('slow ');
-console.log( "Pull C ");
-			await wait(1000);
-			controller.enqueue('slow ');
-console.log( "Pull C ");
-			await wait(1000);
-			controller.enqueue('slow ');
-console.log( "Pull C ");
-			await wait(1000);
-			controller.enqueue('slow ');
-console.log( "Pull C ");
-			await wait(1000);
-			controller.enqueue('slow ');
-console.log( "Pull C ");
-			await wait(1000);
-			controller.enqueue('slow ');
-console.log( "Pull C ");
-			await wait(1000);
-			controller.enqueue('slow ');
-console.log( "Pull Z ");
-
-		},
-	  });
-
 console.log( "Generating Signal" );
 	fetchsignal = new AbortController();
 	try
@@ -126,25 +97,27 @@ console.log( "Generating Signal" );
 		linepl = 0;
 		fetch( "test_federate_in.cgi", {
 			method: 'POST',
+			body : stream_in,
 			headers : {
 				"Content-Type": "application/octet-stream",
+				//"Content-Type": "text/plain",
 				"Transfer-Encoding": "chunked"
 			},
 			signal : fetchsignal.signal,
+			duplex: 'half',
 		 } ).then( response => {
 			console.log( "Consume" );
 			return consume(response.body.getReader());
 		} );
 	} catch(error) {
 		console.log(error);
-		setTimeout( connectForStream, 100 );
+		//setTimeout( connectForStream, 100 );
 	}
 }
 
 function sysload()
 {
 	setTimeout( connectForStream, 100 );
-
 }
 </script>
 <body onload=sysload()>

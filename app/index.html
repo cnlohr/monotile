@@ -80,7 +80,7 @@ function CompleteMessage( linesofar )
 		MapW = Number( splits[1] ) | 0;
 		MapH = Number( splits[2] ) | 0;
 		BlockSize = Number( splits[3] ) | 0;
-		console.log( MapW + " " + MapH + " " + BlockSize );
+		console.log( "Map Setup: " + MapW + " " + MapH + " " + BlockSize );
 	}
 	else if( splits[0] == 'L' )
 	{
@@ -100,6 +100,10 @@ function CompleteMessage( linesofar )
 			return;
 		}
 		console.log( decodeURI( splits[4] ) );
+	}
+	else if( splits[0] == 'K' )
+	{
+		// Keep-alive.
 	}
 	else
 	{
@@ -140,6 +144,7 @@ const consume = responseReader => {
 			console.log( "No result value" );
 			fetchsignal.abort();
 			setTimeout( connectForStream, 100 );
+			return;
 		}
 		if (result.done)
 		{
@@ -152,53 +157,19 @@ const consume = responseReader => {
 	});
 }
 
-
-const stream = new ReadableStream({
-  async start(controller) {
-    await wait(5000);
-    controller.enqueue('This ');
-    await wait(1000);
-    controller.enqueue('is ');
-    await wait(1000);
-    controller.enqueue('a ');
-    await wait(1000);
-    controller.enqueue('slow ');
-    await wait(1000);
-    controller.enqueue('request.');
-    controller.close();
-  },
-}).pipeThrough(new TextEncoderStream());
-
 function connectForStream()
 {
 	if( fetchsignal ) fetchsignal.abort();
 	ResetStreamReader();
-
-	const rs = new ReadableStream({
-		async pull(controller) {
-
-			await wait(3000);
-			controller.enqueue('slow ');
-
-			await wait(1000);
-			controller.enqueue('slow ');
-
-		},
-	  });
-	
-
 	fetchsignal = new AbortController();
 	try
 	{
 		linepl = 0;
 		fetch( "stream.cgi", {
 			method: 'POST',
-			headers : {
-				//"Content-Type": "application/octet-stream",
-				//"Transfer-Encoding": "chunked"
-			},
-			body : rs,
+			headers : { },
 			signal : fetchsignal.signal,
+			body : "", // If we wanted to provide the streamer some data.
 		 } ).then( response => {
 			return consume(response.body.getReader());
 		} );
